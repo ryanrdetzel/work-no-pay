@@ -1,11 +1,20 @@
+import os
 import time
 import redis
 import simplejson as json
 import requests
 
+"""
+    To add new functions (what the worker can do) simply create new functions
+    within the Worker class and make sure the redis jobs have the correct name
+    for the function key.
+"""
+
 REDIS_QUEUE = 'worker_queue'
 REDIS_GOOGLE_DATA = 'data:google'
+GOOGLE_API_KEY = os.environ['GOOGLE_API_KEY']
 
+# How long the worker should rest
 SLEEP = 1
 
 class Worker():
@@ -14,6 +23,12 @@ class Worker():
         self.loop()
 
     def loop(self):
+        """
+            Main loop. Pops and item off the redis queue and checks to see if
+            we know how to handle this.
+
+            TODO: If a worker can't handle a function push it back on the queue
+        """
         while True:
             job = self.r.lpop(REDIS_QUEUE)
             if job:
@@ -33,12 +48,13 @@ class Worker():
                     getattr(self, function)(data)
             time.sleep(SLEEP)
 
+    """
+        functions this work can work on
+    """
     def google_places_detail(self, job):
         """
             Gets the google places detail results
         """
-        API_KEY = 'AIzaSyCJLA40JKAB9ImEI75qqDT4AmGxM8UsMf8'
-
         reference = job.get('reference', None)
         if not reference:
             print "No reference found"
@@ -46,7 +62,7 @@ class Worker():
 
         url = "https://maps.googleapis.com/maps/api/place/details/json"
         args = {
-            'key': API_KEY,
+            'key': GOOGLE_API_KEY,
             'sensor': 'false',
             'reference': reference,
         }
@@ -69,7 +85,6 @@ class Worker():
         '''
             Gets data from google places
         '''
-        API_KEY = 'AIzaSyCJLA40JKAB9ImEI75qqDT4AmGxM8UsMf8'
 
         url = "https://maps.googleapis.com/maps/api/place/textsearch/json"
         query = job.get('query', None)
@@ -77,7 +92,7 @@ class Worker():
             print "No query in job"
             return
         args = {
-            'key': API_KEY,
+            'key': GOOGLE_API_KEY,
             'sensor': 'false',
             'query': query
         }
